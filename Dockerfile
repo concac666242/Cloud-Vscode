@@ -1,31 +1,14 @@
-# Arch Linux + Python 3.12 + sudo không mật khẩu (VS Code)
-FROM archlinux:latest
+FROM python:3.12-slim
 
-# Tắt hỏi khi cài gói
-ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y curl wget git sudo nano apt-transport-https \
+    && rm -rf /var/lib/apt/lists/*
 
-# Update & cài gói cần thiết (bao gồm openssl, libffi để pip hoạt động)
-RUN pacman -Sy --noconfirm && \
-    pacman -S --noconfirm --needed \
-    base-devel git sudo python python-pip \
-    openssl zlib libffi && \
-    pacman -Scc --noconfirm
+# Cài code-server
+RUN curl -fsSL https://code-server.dev/install.sh | sh
 
-# Tạo user dev có sudo không mật khẩu
-RUN useradd -m -s /bin/bash dev && \
-    passwd -d dev && \
-    echo "dev ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/99-dev && \
-    chmod 0440 /etc/sudoers.d/99-dev
+RUN mkdir -p /root/.config/code-server && \
+    echo "bind-addr: 0.0.0.0:8080\nauth: none\ncert: false" > /root/.config/code-server/config.yaml
 
-# Làm việc trong thư mục /workspace
-WORKDIR /workspace
-
-# Chuyển sang user dev
-USER dev
-
-# Fix pip lỗi bằng cách nâng cấp
-RUN python -m ensurepip --upgrade && \
-    pip install --no-cache-dir --upgrade pip setuptools wheel
-
-# Lệnh mặc định
-CMD ["python", "--version"]
+WORKDIR /root/project
+EXPOSE 8080
+CMD ["code-server", "--host", "0.0.0.0", "--port", "8080", "/root/project"]
