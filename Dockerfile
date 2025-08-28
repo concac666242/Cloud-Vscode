@@ -1,19 +1,28 @@
-FROM alpine:latest
+# Arch Linux + Python 3.12 + sudo không mật khẩu (cho VS Code)
+FROM archlinux:latest
 
-ENV PY_VER=3.12.6
+ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apk add --no-cache \
-    build-base wget curl ca-certificates \
-    openssl-dev bzip2-dev zlib-dev xz-dev \
-    sqlite-dev readline-dev tk-dev libffi-dev \
-    && cd /tmp \
-    && wget https://www.python.org/ftp/python/${PY_VER}/Python-${PY_VER}.tgz \
-    && tar xzf Python-${PY_VER}.tgz \
-    && cd Python-${PY_VER} \
-    && ./configure --enable-optimizations --with-ensurepip=install \
-    && make -j$(nproc) && make altinstall \
-    && ln -s /usr/local/bin/python3.12 /usr/local/bin/python3 \
-    && ln -s /usr/local/bin/pip3.12 /usr/local/bin/pip3 \
-    && cd / && rm -rf /tmp/Python*
+# Cập nhật hệ thống và cài các gói cơ bản + Python 3.12 + sudo
+RUN pacman -Sy --noconfirm && \
+    pacman -S --noconfirm --needed \
+    base-devel git sudo python python-pip \
+    && pacman -Scc --noconfirm
 
-CMD ["python3", "--version"]
+# Tạo user "dev" không mật khẩu, có sudo NOPASSWD
+RUN useradd -m -s /bin/bash dev && \
+    passwd -d dev && \
+    echo "dev ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/99-dev && \
+    chmod 0440 /etc/sudoers.d/99-dev
+
+# Thư mục làm việc
+WORKDIR /workspace
+
+# Chuyển sang user dev (không pass)
+USER dev
+
+# Cài pip và tool Python cơ bản
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Lệnh mặc định
+CMD ["python", "--version"]
